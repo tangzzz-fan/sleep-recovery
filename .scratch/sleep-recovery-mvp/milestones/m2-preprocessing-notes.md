@@ -109,7 +109,7 @@ C++ 等价方案用 `std::unordered_map<std::string, std::vector<double>>`
 
 ## 7. 跨表关联完整性
 
-**问题**：CSV 不像 SQL，没有外键约束。C++ 实现需要手动保�� session_id 一致性。
+**问题**：CSV 不像 SQL，没有外键约束。C++ 实现需要手动确保 session_id 一致性。
 
 **推荐方案**：
 - 首先生成 `night_sessions.csv`，确定所有 session_id
