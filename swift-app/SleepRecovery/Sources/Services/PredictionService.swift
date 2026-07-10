@@ -1,6 +1,5 @@
 import Foundation
 import CoreML
-import Charts
 
 // Service to load the Core ML model and run inference
 class PredictionService {
