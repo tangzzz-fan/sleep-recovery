@@ -10,37 +10,21 @@ class PredictionService {
     }
 
     private func loadModel() {
-        // In Xcode, the model is compiled into the app bundle as a .mlmodelc directory.
-        // In SPM debug builds (swift run), the model stays as .mlpackage alongside the binary.
-        // Search order:
-        //   1. Bundle resource (Xcode: compiled .mlmodelc)
-        //   2. Executable directory tree (SPM: .mlpackage in .build/debug/)
-        let bundleURL = Bundle.main.url(forResource: "lr_classifier", withExtension: "mlmodelc")
-            ?? Bundle.main.url(forResource: "lr_classifier", withExtension: "mlpackage")
-
-        if let url = bundleURL {
-            model = try? MLModel(contentsOf: url)
-            if model != nil {
-                print("[PredictionService] Loaded model from bundle: \(url.lastPathComponent)")
-                return
-            }
-        }
-
-        // Fallback: SPM debug build — search executable dir tree
-        if let exeDir = Bundle.main.executableURL?.deletingLastPathComponent() {
-            let dirs = [exeDir,
-                        exeDir.deletingLastPathComponent(),
-                        exeDir.deletingLastPathComponent().deletingLastPathComponent()]
-            for dir in dirs {
-                for name in ["lr_classifier", "rf_classifier", "xgb_classifier"] {
-                    let path = dir.appendingPathComponent("\(name).mlpackage")
-                    if FileManager.default.fileExists(atPath: path.path) {
-                        model = try? MLModel(contentsOf: path)
-                        if model != nil {
-                            print("[PredictionService] Loaded model from \(path.path)")
-                            return
-                        }
-                    }
+        let modelNames = ["lr_classifier", "rf_classifier", "xgb_classifier"]
+        for name in modelNames {
+            if let packageURL = Bundle.module.url(
+                forResource: name,
+                withExtension: "mlpackage",
+                subdirectory: "Models"
+            ) {
+                do {
+                    // Compile the package into a loadable .mlmodelc before use.
+                    let compiledURL = try MLModel.compileModel(at: packageURL)
+                    model = try MLModel(contentsOf: compiledURL)
+                    print("[PredictionService] Loaded model from package resources: \(packageURL.lastPathComponent)")
+                    return
+                } catch {
+                    print("[PredictionService] Failed to load \(name).mlpackage: \(error)")
                 }
             }
         }

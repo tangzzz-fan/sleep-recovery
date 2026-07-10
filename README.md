@@ -64,6 +64,8 @@ MVP 场景为 `睡眠恢复评估`：
 - 一致性验证：[consistency-report.md](docs/consistency-report.md)
 - 模型选择分析：[model-selection-analysis.md](docs/model-selection-analysis.md)
 - Core ML 优化：[coreml-optimization.md](docs/coreml-optimization.md)
+- Swift App 模型与数据使用说明：[swift-app-model-usage.md](docs/swift-app-model-usage.md)
+- Swift App 模型原理说明：[swift-app-model-principles.md](docs/swift-app-model-principles.md)
 - 数据集选择：[data_readme.md](data_readme.md)
 - 演示说明：[DEMO.md](DEMO.md)
 - Tickets 目录：[issues](.scratch/sleep-recovery-mvp/issues)
@@ -92,9 +94,11 @@ MVP 场景为 `睡眠恢复评估`：
 ├── models/                 # Core ML 模型
 │   ├── lr_classifier.mlpackage
 │   ├── rf_classifier.mlpackage
+│   ├── xgb_classifier.mlpackage
 │   └── xgb_classifier_v2.mlpackage
 ├── swift-app/              # SwiftUI macOS 应用
 │   └── SleepRecovery/
+│       └── Sources/Resources/Models/   # App 实际打包的 Core ML 资源
 ├── data/                   # 数据产出
 │   ├── features/           # 240 个会话特征包
 │   ├── normalized/         # 标准化会话数据
@@ -143,3 +147,28 @@ cd swift-app && swift build
 ```
 
 详见 [DEMO.md](DEMO.md)
+
+## Swift App 使用说明
+
+### 模型加载
+
+- Swift App 当前内置 3 个模型资源：`lr_classifier`、`rf_classifier`、`xgb_classifier`
+- 这 3 个模型都从 `swift-app/SleepRecovery/Sources/Resources/Models/` 打包进应用
+- 它们在 Swift 端共用同一份特征输入格式，不是分别读取不同 CSV
+
+### CSV 输入关系
+
+- **直接加载的入口文件**：`derived_features.csv`
+- **自动联动的图表 sidecar**：
+  - `heart_rate_timeseries/<session_id>_hr.csv`
+  - `activity_timeseries/<session_id>_activity.csv`
+- **不会直接喂给模型的文件**：`heart_rate_timeseries.csv`、`activity_timeseries.csv`、`night_sessions.csv`
+
+### 使用建议
+
+- 只验证推理链路时，直接加载 `data/features/derived_features.csv`
+- 需要验证真实图表时，必须把时序 sidecar 按 Swift 端约定的目录结构放在同级目录
+- 根目录 `models/` 下的模型属于训练/export 产物；Swift App 运行时实际读取的是 `swift-app` 内部资源副本
+
+操作说明见 [swift-app-model-usage.md](docs/swift-app-model-usage.md)。
+原理说明见 [swift-app-model-principles.md](docs/swift-app-model-principles.md)。

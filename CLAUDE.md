@@ -35,6 +35,15 @@ See `docs/spec-and-milestones.md` for the authoritative spec and milestone plan.
 - Before exploring the codebase, read `CONTEXT.md` and `docs/adr/`.
 - See `docs/agents/domain.md` for details.
 
+### SwiftPM Resource Loading
+
+- `swift-app/` is a Swift Package and does **not** require a standalone `.xcodeproj`.
+- Core ML models used by the Swift app must live under `swift-app/SleepRecovery/Sources/Resources/Models/`.
+- Model packages are bundled as SwiftPM resources via `Package.swift` using `.copy("Resources/Models")`.
+- Runtime loading must use `Bundle.module`, not `Bundle.main`.
+- `.mlpackage` resources should be loaded by compiling them first with `MLModel.compileModel(at:)`, then opening the returned `.mlmodelc`.
+- Do not place `.mlpackage` directly under `Sources/` root, or SwiftPM/Xcode may treat it as a source input and trigger unwanted Core ML codegen behavior.
+
 ## Architecture
 
 ```
@@ -82,8 +91,12 @@ Same `requirements.txt` must work on both. On Colab, use `!pip install -r requir
 Open `swift-app/` in Xcode 16.4, or build from CLI:
 ```bash
 cd swift-app
+swift build
+swift run SleepRecovery
 xcodebuild -scheme SleepRecovery -destination 'platform=macOS' build
 ```
+
+For Xcode-built products, the generated binary under DerivedData should load the bundled model without extra configuration.
 
 ## Key Files
 
