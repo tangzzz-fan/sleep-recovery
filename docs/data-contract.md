@@ -297,9 +297,11 @@ data/
 
 - [x] 4-table field names and types frozen — downstream modules no longer rename columns
 - [x] Fitbit field mapping verified for all 12 HR+sleep users
-- [x] Weak-label formula tested — produces distribution: Poor=7, Average=37, Good=196 (unbalanced, expected with rule-based labels)
+- [x] Weak-label formula tested — produces distribution: Poor=7, Average=37, Good=196 (expected with rule-based labels)
 - [x] Artifact manifest JSON schema validated (manifest.json produced for golden sample)
 - [x] Golden sample: raw data → normalize → feature extract → predict works end-to-end
 - [x] `heartrate_seconds_merged.csv` second-level → minute-level aggregation tested (355 valid HR minutes for golden sample)
 - [x] Sleep window detection handles AM/PM 12-hour format correctly
 - [x] Golden sample CSV files generated and verified: night_session.csv, heart_rate_timeseries.csv, activity_timeseries.csv, derived_features.csv, manifest.json
+- [x] Cross-layer consistency: C++ → Python (9 features diff=0.0), Python → Core ML (3 models), C++ → Core ML (golden sample) — all verified
+- [x] 3 Core ML models exported and verified: lr_classifier, rf_classifier, xgb_classifier_v2
