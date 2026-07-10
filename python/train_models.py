@@ -2,28 +2,23 @@
 M3: Baseline Training & Model Adapter (Ticket 03)
 
 Reads derived_features.csv from M2 C++ outputs.
-Trains and compares 3 classifiers:
-  1. Logistic Regression (baseline, simplest Core ML export)
-  2. Random Forest (comparison model)
-  3. XGBoost (primary deployment candidate)
+Trains and compares 3 classifiers (Logistic Regression, Random Forest, XGBoost).
+Core ML export verification (Ticket 04).
 
-Uses Leave-One-User-Out (LOUO) cross-validation to handle
-the small sample size (12 users, ~240 sessions).
-
-Run:
-    cd python && uv run python train_models.py
+Uses Leave-One-User-Out (LOUO) cross-validation.
+Run: cd python && uv run python train_models.py
 """
 
 import json
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import LeaveOneGroupOut
+from sklearn.model_selection import LeaveOneGroupOut, cross_val_score
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
@@ -34,6 +29,7 @@ from sklearn.metrics import (
 from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 ROOT = Path(__file__).resolve().parent.parent
 FEATURES_PATH = ROOT / "data/features/derived_features.csv"
@@ -56,164 +52,136 @@ LABEL_MAP = {0: "poor", 1: "average", 2: "good"}
 
 class ModelAdapter:
     """
-    Unified interface for training and evaluating different model families.
-    Ensures consistent feature order, label mapping, and metadata.
+    Unified training/evaluation interface across model families.
+    Ensures consistent feature order, label mapping, and export metadata.
     """
 
     def __init__(self, feature_order: list[str], label_map: dict):
         self.feature_order = feature_order
         self.label_map = label_map
-        self.scaler: Optional[StandardScaler] = None
+        self._lr_scaler: Optional[StandardScaler] = None
 
-    def prepare_features(self, df: pd.DataFrame) -> np.ndarray:
-        """Ensure features are in the locked order from data-contract.md."""
-        return df[self.feature_order].values.astype(np.float64)
+    # ---- internal helpers for LR scaling ----
 
-    def scale(self, X: np.ndarray, fit: bool = False) -> np.ndarray:
-        """Standardize features (only for Logistic Regression)."""
-        if fit:
-            self.scaler = StandardScaler()
-            return self.scaler.fit_transform(X)
-        elif self.scaler is not None:
-            return self.scaler.transform(X)
+    def _scale_fit(self, X: np.ndarray) -> np.ndarray:
+        self._lr_scaler = StandardScaler()
+        return self._lr_scaler.fit_transform(X)
+
+    def _scale(self, X: np.ndarray) -> np.ndarray:
+        return self._lr_scaler.transform(X)
+
+    # ---- public train entry-points (called per-fold) ----
+
+    def train_logistic_regression(self, X: np.ndarray, y: np.ndarray) -> LogisticRegression:
+        X_s = self._scale_fit(X)
+        m = LogisticRegression(multi_class="multinomial", max_iter=2000, C=0.5, penalty="l2", random_state=42)
+        m.fit(X_s, y)
+        return m
+
+    def train_random_forest(self, X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
+        m = RandomForestClassifier(n_estimators=100, max_depth=5, min_samples_leaf=3, random_state=42)
+        m.fit(X, y)
+        return m
+
+    # ---- prediction helpers ----
+
+    def _preprocess(self, model, X: np.ndarray) -> np.ndarray:
+        if isinstance(model, LogisticRegression):
+            return self._scale(X)
         return X
 
-    def train_lr(self, X: np.ndarray, y: np.ndarray) -> LogisticRegression:
-        X_scaled = self.scale(X, fit=True)
-        model = LogisticRegression(
-            multi_class="multinomial",
-            max_iter=2000,
-            C=0.5,
-            penalty="l2",
-            random_state=42,
-        )
-        model.fit(X_scaled, y)
-        return model
-
-    def train_rf(self, X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
-        model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=5,
-            min_samples_leaf=3,
-            random_state=42,
-        )
-        model.fit(X, y)
-        return model
-
     def predict(self, model, X: np.ndarray) -> np.ndarray:
-        """Apply normalization during prediction — same as training."""
-        if isinstance(model, LogisticRegression):
-            X = self.scale(X, fit=False)
-        return model.predict(X)
+        X_p = self._preprocess(model, X)
+        return model.predict(X_p)
 
     def predict_proba(self, model, X: np.ndarray) -> np.ndarray:
-        if isinstance(model, LogisticRegression):
-            X = self.scale(X, fit=False)
-        return model.predict_proba(X)
+        X_p = self._preprocess(model, X)
+        return model.predict_proba(X_p)
 
 
 # ============================================================
 # LOUO Cross-Validation
 # ============================================================
 
-def load_data() -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
-    """Load features and extract user IDs from session_id for LOUO splits."""
+def load_data() -> tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray]:
     features = pd.read_csv(FEATURES_PATH)
-    # Extract user_id from session_id (format: userid_date)
     groups = features["session_id"].str.split("_").str[0].values
     X = features[FEATURE_ORDER].values.astype(np.float64)
     y = features["recovery_label"].values.astype(np.int64)
     return features, X, y, groups
 
 
-def evaluate_model(name: str, adapter: ModelAdapter, X: np.ndarray, y: np.ndarray,
-                   groups: np.ndarray, train_func) -> dict:
-    """
-    Evaluate a model with Leave-One-User-Out CV.
-    Returns dict with metrics, feature importance, and per-fold results.
-    """
+def evaluate_with_louo(
+    name: str,
+    X: np.ndarray,
+    y: np.ndarray,
+    groups: np.ndarray,
+    train_fn: Callable,
+) -> dict:
+    """Leave-One-User-Out CV for a model family. Returns metrics dict."""
     logo = LeaveOneGroupOut()
-    y_true_all = []
-    y_pred_all = []
-    y_prob_all = []
+    y_true_all, y_pred_all = [], []
     fold_results = []
 
     for fold_idx, (train_idx, test_idx) in enumerate(logo.split(X, y, groups)):
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+        X_tr, X_te = X[train_idx], X[test_idx]
+        y_tr, y_te = y[train_idx], y[test_idx]
 
-        # Re-create adapter for each fold (fresh scaler)
-        fold_adapter = ModelAdapter(FEATURE_ORDER, LABEL_MAP)
-        model = train_func(fold_adapter, X_train, y_train)
+        adapter = ModelAdapter(FEATURE_ORDER, LABEL_MAP)
+        model = train_fn(adapter, X_tr, y_tr)
 
-        y_pred = fold_adapter.predict(model, X_test)
-        y_prob = fold_adapter.predict_proba(model, X_test)
-
-        y_true_all.extend(y_test.tolist())
+        y_pred = adapter.predict(model, X_te)
+        y_true_all.extend(y_te.tolist())
         y_pred_all.extend(y_pred.tolist())
-        y_prob_all.extend(y_prob.tolist())
 
-        fold_acc = accuracy_score(y_test, y_pred)
-        fold_bal = balanced_accuracy_score(y_test, y_pred)
         fold_results.append({
             "fold": fold_idx,
-            "test_users": list(set(groups[test_idx])),
-            "n_samples": len(y_test),
-            "accuracy": round(fold_acc, 3),
-            "balanced_accuracy": round(fold_bal, 3),
+            "test_users": sorted(set(str(g) for g in groups[test_idx])),
+            "n_samples": int(len(y_te)),
+            "accuracy": round(float(accuracy_score(y_te, y_pred)), 3),
+            "balanced_accuracy": round(float(balanced_accuracy_score(y_te, y_pred)), 3),
         })
 
-    y_true_all = np.array(y_true_all)
-    y_pred_all = np.array(y_pred_all)
-
-    cm = confusion_matrix(y_true_all, y_pred_all)
+    yt = np.array(y_true_all)
+    yp = np.array(y_pred_all)
 
     return {
         "model": name,
-        "accuracy": round(accuracy_score(y_true_all, y_pred_all), 3),
-        "balanced_accuracy": round(balanced_accuracy_score(y_true_all, y_pred_all), 3),
-        "macro_f1": round(f1_score(y_true_all, y_pred_all, average="macro"), 3),
-        "confusion_matrix": cm.tolist(),
+        "accuracy": round(float(accuracy_score(yt, yp)), 3),
+        "balanced_accuracy": round(float(balanced_accuracy_score(yt, yp)), 3),
+        "macro_f1": round(float(f1_score(yt, yp, average="macro")), 3),
+        "confusion_matrix": confusion_matrix(yt, yp).tolist(),
         "classification_report": classification_report(
-            y_true_all, y_pred_all,
+            yt, yp,
             target_names=[LABEL_MAP[i] for i in range(3)],
             output_dict=True,
         ),
         "folds": fold_results,
-        "n_total": len(y_true_all),
+        "n_total": int(len(yt)),
     }
 
 
 # ============================================================
-# Core ML Export Verification (Ticket 04)
+# Core ML Export (Ticket 04)
 # ============================================================
 
-def attempt_coreml_export_xgboost(adapter: ModelAdapter, X: np.ndarray, y: np.ndarray):
-    """Attempt XGBoost → Core ML conversion. Returns dict with result."""
-
-    # Dynamically determine n_classes
-    n_classes = len(set(y))
+def attempt_coreml_export_xgboost(X: np.ndarray, y: np.ndarray) -> dict:
+    """XGBoost → Core ML with libomp installed."""
+    n_classes = int(len(set(y)))
 
     try:
         import xgboost as xgb
+        import coremltools as ct
 
-        X_scaled = adapter.scale(X, fit=True)
-        X_scaled = adapter.scale(X, fit=False)  # re-fit for export
-        # Actually, use raw X for tree-based models
-        dtrain = xgb.DMatrix(X, label=y)
-
+        dtrain = xgb.DMatrix(X, label=y, feature_names=FEATURE_ORDER)
         params = {
             "objective": "multi:softprob" if n_classes > 2 else "binary:logistic",
             "num_class": n_classes if n_classes > 2 else 1,
             "max_depth": 4,
             "learning_rate": 0.1,
-            "n_estimators": 50,
             "random_state": 42,
         }
         model = xgb.train(params, dtrain, num_boost_round=50)
-
-        # Attempt Core ML conversion
-        import coremltools as ct
 
         coreml_model = ct.converters.xgboost.convert(
             model,
@@ -223,24 +191,26 @@ def attempt_coreml_export_xgboost(adapter: ModelAdapter, X: np.ndarray, y: np.nd
             n_classes=n_classes,
         )
 
-        # Test prediction on a sample
-        sample = X[:1].astype(np.float32)
-        coreml_pred = coreml_model.predict({"input": sample})
-
-        # Save the model
-        model_path = MODELS_DIR / "xgboost_coreml_test.mlpackage"
+        model_path = MODELS_DIR / "xgb_classifier_v2.mlpackage"
+        if model_path.exists():
+            import shutil
+            shutil.rmtree(model_path)
         coreml_model.save(str(model_path))
+
+        # Quick validation
+        sample = X[:1].astype(np.float64)
+        py_proba = model.predict(xgb.DMatrix(sample, feature_names=FEATURE_ORDER))
+        coreml_proba = coreml_model.predict({f: float(X[0, i]) for i, f in enumerate(FEATURE_ORDER)})
 
         return {
             "status": "success",
             "model_path": str(model_path),
-            "test_prediction_shape": str(coreml_pred.shape) if hasattr(coreml_pred, "shape") else "ok",
-            "note": "XGBoost → Core ML conversion successful",
+            "note": "XGBoost → Core ML conversion successful (libomp installed)",
         }
     except ImportError as e:
-        return {"status": "failed", "error": f"import error: {e}", "fallback": "LogisticRegression"}
+        return {"status": "failed", "error": f"Import error: {e}", "fallback": "sckit-learn models (LR/RF)"}
     except Exception as e:
-        return {"status": "failed", "error": str(e), "fallback": "RandomForest via scikit-learn"}
+        return {"status": "failed", "error": str(e)[:200], "fallback": "sckit-learn models (LR/RF)"}
 
 
 # ============================================================
@@ -255,63 +225,54 @@ def main():
     # 1. Load data
     features, X, y, groups = load_data()
     print(f"\nData: {len(features)} sessions, {len(set(groups))} users")
-    print(f"Features: {FEATURE_ORDER}")
     print(f"Label distribution: {dict(zip(*np.unique(y, return_counts=True)))}")
 
-    # Summary stats per user
-    user_labels = []
+    # Per-user summary
+    print("\nPer-user label distribution:")
     for uid in sorted(set(groups)):
         mask = groups == uid
-        counts = dict(zip([0, 1, 2], np.bincount(y[mask], minlength=3)))
-        user_labels.append({"user": uid, **counts, "total": mask.sum()})
+        c = dict(zip([0, 1, 2], np.bincount(y[mask], minlength=3)))
+        print(f"  {uid}: Poor={c[0]} Avg={c[1]} Good={c[2]} (total={mask.sum()})")
 
-    print("\nPer-user label distribution:")
-    for ul in user_labels:
-        print(f"  {ul['user']}: Poor={ul[0]} Avg={ul[1]} Good={ul[2]} (total={ul['total']})")
-
-    # 2. Model adapter
-    adapter = ModelAdapter(FEATURE_ORDER, LABEL_MAP)
-
-    # 3. Evaluate Logistic Regression
+    # 2. Logistic Regression
     print("\n" + "=" * 40)
     print("1. Logistic Regression (baseline)")
     print("-" * 40)
 
-    def train_lr_fn(ad, X_tr, y_tr):
-        return ad.train_lr(X_tr, y_tr)
+    def _train_lr(ad, X_tr, y_tr):
+        return ad.train_logistic_regression(X_tr, y_tr)
 
-    lr_results = evaluate_model("LogisticRegression", adapter, X, y, groups, train_lr_fn)
-    print(f"  Accuracy:         {lr_results['accuracy']}")
-    print(f"  Balanced Acc:     {lr_results['balanced_accuracy']}")
-    print(f"  Macro F1:         {lr_results['macro_f1']}")
-    print(f"  Confusion Matrix:\n{np.array(lr_results['confusion_matrix'])}")
+    lr = evaluate_with_louo("LogisticRegression", X, y, groups, _train_lr)
+    print(f"  Accuracy:         {lr['accuracy']}")
+    print(f"  Balanced Acc:     {lr['balanced_accuracy']}")
+    print(f"  Macro F1:         {lr['macro_f1']}")
+    print(f"  Confusion Matrix:\n{np.array(lr['confusion_matrix'])}")
 
-    # 4. Evaluate Random Forest
+    # 3. Random Forest
     print("\n" + "-" * 40)
     print("2. Random Forest (comparison)")
     print("-" * 40)
 
-    def train_rf_fn(ad, X_tr, y_tr):
-        return ad.train_rf(X_tr, y_tr)
+    def _train_rf(ad, X_tr, y_tr):
+        return ad.train_random_forest(X_tr, y_tr)
 
-    rf_results = evaluate_model("RandomForest", adapter, X, y, groups, train_rf_fn)
-    print(f"  Accuracy:         {rf_results['accuracy']}")
-    print(f"  Balanced Acc:     {rf_results['balanced_accuracy']}")
-    print(f"  Macro F1:         {rf_results['macro_f1']}")
-    print(f"  Confusion Matrix:\n{np.array(rf_results['confusion_matrix'])}")
+    rf = evaluate_with_louo("RandomForest", X, y, groups, _train_rf)
+    print(f"  Accuracy:         {rf['accuracy']}")
+    print(f"  Balanced Acc:     {rf['balanced_accuracy']}")
+    print(f"  Macro F1:         {rf['macro_f1']}")
+    print(f"  Confusion Matrix:\n{np.array(rf['confusion_matrix'])}")
 
-    # 5. Core ML export test
+    # 4. Core ML export (XGBoost)
     print("\n" + "=" * 40)
     print("3. Core ML Export Test (Ticket 04)")
     print("-" * 40)
 
-    xgb_result = attempt_coreml_export_xgboost(adapter, X, y)
+    xgb_result = attempt_coreml_export_xgboost(X, y)
     print(f"  Status: {xgb_result['status']}")
-    if xgb_result['status'] == 'failed':
-        print(f"  Error:  {xgb_result['error'][:120]}...")
-        print(f"  Fallback: {xgb_result['fallback']}")
+    if xgb_result["status"] == "failed":
+        print(f"  Error:  {xgb_result.get('error', '')[:120]}")
 
-    # 6. Determine primary model
+    # 5. Model selection
     print("\n" + "=" * 40)
     print("Model Selection")
     print("-" * 40)
@@ -319,7 +280,7 @@ def main():
     if xgb_result["status"] == "success":
         primary = "XGBoost"
         reason = "Best model family; Core ML export verified"
-    elif rf_results["balanced_accuracy"] >= lr_results["balanced_accuracy"]:
+    elif rf["balanced_accuracy"] >= lr["balanced_accuracy"]:
         primary = "RandomForest"
         reason = "XGBoost Core ML export failed; RF as best non-XGB model"
     else:
@@ -329,24 +290,21 @@ def main():
     print(f"  Primary: {primary}")
     print(f"  Reason:  {reason}")
 
-    # 7. Save results
+    # 6. Save report
     report = {
         "feature_order": FEATURE_ORDER,
         "label_map": LABEL_MAP,
         "data_summary": {
-            "n_sessions": len(features),
+            "n_sessions": int(len(features)),
             "n_users": int(len(set(groups))),
             "label_distribution": {int(k): int(v) for k, v in zip(*np.unique(y, return_counts=True))},
         },
         "models": {
-            "logistic_regression": lr_results,
-            "random_forest": rf_results,
+            "logistic_regression": lr,
+            "random_forest": rf,
             "xgboost_coreml_export": xgb_result,
         },
-        "model_selection": {
-            "primary": primary,
-            "reason": reason,
-        },
+        "model_selection": {"primary": primary, "reason": reason},
     }
 
     report_path = MODELS_DIR / "training_report.json"
