@@ -11,26 +11,45 @@ class PredictionService {
     }
 
     private func loadModel() {
-        // Search paths: bundle first, then executable directory (for SPM debug builds)
-        let candidateURLs: [URL] = [
+        // Search bundle first, then executable directory tree (for SPM debug/Finder launch)
+        let bundleURLs: [URL?] = [
             Bundle.main.url(forResource: "lr_classifier", withExtension: "mlpackage"),
             Bundle.main.url(forResource: "rf_classifier", withExtension: "mlpackage"),
             Bundle.main.url(forResource: "xgb_classifier", withExtension: "mlpackage"),
-            // SPM .build/debug directory
-            Bundle.main.bundleURL.deletingLastPathComponent()
-                .appendingPathComponent("lr_classifier.mlpackage"),
-            Bundle.main.bundleURL.deletingLastPathComponent()
-                .appendingPathComponent("rf_classifier.mlpackage"),
-        ].compactMap { $0 }
+        ]
 
-        for url in candidateURLs {
-            if FileManager.default.fileExists(atPath: url.path) {
-                do {
-                    model = try MLModel(contentsOf: url)
-                    print("[PredictionService] Loaded model: \(url.lastPathComponent) from \(url.path)")
-                    return
-                } catch {
-                    print("[PredictionService] Failed to load \(url.lastPathComponent): \(error)")
+        for url in bundleURLs.compactMap({ $0 }) {
+            do {
+                model = try MLModel(contentsOf: url)
+                print("[PredictionService] Loaded model: \(url.lastPathComponent)")
+                return
+            } catch {
+                print("[PredictionService] Bundle load failed for \(url.lastPathComponent): \(error)")
+            }
+        }
+
+        // Fallback: search executable directory tree (up to 3 levels up)
+        let exeDir = Bundle.main.executableURL?.deletingLastPathComponent()
+        // Build search path list without optional chaining on non-optional
+        var dirs: [URL] = []
+        if let d = exeDir { dirs.append(d) }
+        if let d = exeDir {
+            dirs.append(d.deletingLastPathComponent())
+            dirs.append(d.deletingLastPathComponent().deletingLastPathComponent())
+        }
+
+        let modelNames = ["lr_classifier", "rf_classifier", "xgb_classifier"]
+        for dir in dirs {
+            for name in modelNames {
+                let path = dir.appendingPathComponent("\(name).mlpackage")
+                if FileManager.default.fileExists(atPath: path.path) {
+                    do {
+                        model = try MLModel(contentsOf: path)
+                        print("[PredictionService] Loaded model: \(name).mlpackage from \(path.path)")
+                        return
+                    } catch {
+                        print("[PredictionService] Failed to load \(name): \(error)")
+                    }
                 }
             }
         }
