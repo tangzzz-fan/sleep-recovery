@@ -13,12 +13,23 @@ struct HomeView: View {
 
     private let loader = FeaturePackageLoader()
     private let predictor = PredictionService()
+    @State private var allSessions: [FeaturePackage] = []
 
     var body: some View {
         NavigationSplitView {
             sidebar
         } detail: {
-            mainContent
+            TabView {
+                mainContent
+                    .tabItem {
+                        Label("单夜分析", systemImage: "moon.zzz.fill")
+                    }
+
+                TrendView(sessions: allSessions)
+                    .tabItem {
+                        Label("多夜趋势", systemImage: "chart.line.uptrend.xyaxis")
+                    }
+            }
         }
     }
 
@@ -263,17 +274,20 @@ struct HomeView: View {
         for url in urls {
             // Load derived_features.csv
             if url.lastPathComponent.contains("derived_features") || url.lastPathComponent.contains("features") {
-                if let packages = loader.load(from: url), let first = packages.first {
-                    featurePackage = first
-                    loadedUrl = url.deletingLastPathComponent()
+                if let packages = loader.load(from: url) {
+                    allSessions = packages
+                    if let first = packages.first {
+                        featurePackage = first
+                        loadedUrl = url.deletingLastPathComponent()
 
-                    // Load time-series data from the same directory
-                    hrData = loader.loadHrTimeSeries(for: first.sessionId, from: loadedUrl!)
-                    activityData = loader.loadActivityTimeSeries(for: first.sessionId, from: loadedUrl!)
+                        // Load time-series data from the same directory
+                        hrData = loader.loadHrTimeSeries(for: first.sessionId, from: loadedUrl!)
+                        activityData = loader.loadActivityTimeSeries(for: first.sessionId, from: loadedUrl!)
 
-                    // Run prediction
-                    prediction = predictor.predict(features: first)
-                    factors = predictor.contributingFactors(features: first, prediction: prediction)
+                        // Run prediction
+                        prediction = predictor.predict(features: first)
+                        factors = predictor.contributingFactors(features: first, prediction: prediction)
+                }
                 }
             }
         }
