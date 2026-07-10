@@ -13,6 +13,7 @@ python/*.pyc
 
 # Xcode
 swift-app/.build/
+swift-app/.swiftpm/
 swift-app/*.xcodeproj/xcuserdata/
 
 # IDE
