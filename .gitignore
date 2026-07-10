@@ -1,0 +1,23 @@
+# Fitbit dataset (downloaded from Kaggle, ~266MB)
+Fitabase Data 3.12.16-4.11.16/
+
+# Build artifacts
+cpp/build/
+cpp/*.o
+cpp/sleep-recovery-cli
+
+# Python
+python/.venv/
+python/__pycache__/
+python/*.pyc
+
+# Xcode
+swift-app/.build/
+swift-app/*.xcodeproj/xcuserdata/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
