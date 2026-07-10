@@ -1,13 +1,25 @@
 {
-  "coreMLCodegenLanguage" : "swift",
-  "fileFormatVersion" : "1.0.0",
-  "itemInfoEntries" : {
-    "CEB89330-770B-4F01-8537-8B1E11AD462B" : {
-      "author" : "com.apple.CoreML",
-      "description" : "CoreML Model Specification",
-      "name" : "model.mlmodel",
-      "path" : "com.apple.CoreML\/model.mlmodel"
-    }
-  },
-  "rootModelIdentifier" : "CEB89330-770B-4F01-8537-8B1E11AD462B"
+    "coreMLCodegenLanguage": "swift",
+    "fileFormatVersion": "1.0.0",
+    "itemInfoEntries": {
+        "A3C830E2-7508-40DD-9797-8A9A1DF2DF21": {
+            "author": "com.apple.CoreML",
+            "description": "External FeatureDescription Overlay",
+            "name": "FeatureDescriptions.json",
+            "path": "com.apple.CoreML/FeatureDescriptions.json"
+        },
+        "BAE007D1-FDCA-4558-891D-0F50D0831784": {
+            "author": "com.apple.CoreML",
+            "description": "External Metadata Overlay",
+            "name": "Metadata.json",
+            "path": "com.apple.CoreML/Metadata.json"
+        },
+        "CEB89330-770B-4F01-8537-8B1E11AD462B": {
+            "author": "com.apple.CoreML",
+            "description": "CoreML Model Specification",
+            "name": "model.mlmodel",
+            "path": "com.apple.CoreML/model.mlmodel"
+        }
+    },
+    "rootModelIdentifier": "CEB89330-770B-4F01-8537-8B1E11AD462B"
 }

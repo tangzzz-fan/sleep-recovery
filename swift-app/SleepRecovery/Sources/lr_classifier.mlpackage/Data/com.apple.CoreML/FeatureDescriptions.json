@@ -1,0 +1,45 @@
+{
+  "Inputs" : {
+    "min_hr" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "hr_std" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "activity_spike_count" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "max_hr" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "sleep_fragmentation_score" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "total_duration_min" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "hr_drop_first_90m" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "mean_hr" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "activity_mean" : {
+      "MLFeatureShortDescription" : "--"
+    }
+  },
+  "Outputs" : {
+    "classProbability" : {
+      "MLFeatureShortDescription" : "--"
+    },
+    "classLabel" : {
+      "MLFeatureShortDescription" : "--"
+    }
+  },
+  "TrainingInputs" : {
+
+  },
+  "States" : {
+
+  }
+}
