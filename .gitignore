@@ -10,11 +10,6 @@ cpp/sleep-recovery-cli
 python/.venv/
 python/__pycache__/
 python/*.pyc
-!python/*.py
-!python/*.txt
-!python/*.toml
-!python/*.lock
-!python/.gitignore
 
 # Xcode
 swift-app/.build/
