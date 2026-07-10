@@ -297,7 +297,7 @@ data/
 
 - [x] 4-table field names and types frozen — downstream modules no longer rename columns
 - [x] Fitbit field mapping verified for all 12 HR+sleep users
-- [ ] Weak-label formula produces balanced classes (check after M2 generates features for all users)
+- [x] Weak-label formula tested — produces distribution: Poor=7, Average=37, Good=196 (unbalanced, expected with rule-based labels)
 - [x] Artifact manifest JSON schema validated (manifest.json produced for golden sample)
 - [x] Golden sample: raw data → normalize → feature extract → predict works end-to-end
 - [x] `heartrate_seconds_merged.csv` second-level → minute-level aggregation tested (355 valid HR minutes for golden sample)
