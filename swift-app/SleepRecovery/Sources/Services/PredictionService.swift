@@ -11,21 +11,31 @@ class PredictionService {
     }
 
     private func loadModel() {
-        // Try to load from the app bundle
-        guard let modelURL = Bundle.main.url(forResource: "lr_classifier", withExtension: "mlpackage")
-                ?? Bundle.main.url(forResource: "rf_classifier", withExtension: "mlpackage")
-                ?? Bundle.main.url(forResource: "xgb_classifier", withExtension: "mlpackage")
-        else {
-            print("[PredictionService] No Core ML model found in bundle. Using placeholder predictions.")
-            return
+        // Search paths: bundle first, then executable directory (for SPM debug builds)
+        let candidateURLs: [URL] = [
+            Bundle.main.url(forResource: "lr_classifier", withExtension: "mlpackage"),
+            Bundle.main.url(forResource: "rf_classifier", withExtension: "mlpackage"),
+            Bundle.main.url(forResource: "xgb_classifier", withExtension: "mlpackage"),
+            // SPM .build/debug directory
+            Bundle.main.bundleURL.deletingLastPathComponent()
+                .appendingPathComponent("lr_classifier.mlpackage"),
+            Bundle.main.bundleURL.deletingLastPathComponent()
+                .appendingPathComponent("rf_classifier.mlpackage"),
+        ].compactMap { $0 }
+
+        for url in candidateURLs {
+            if FileManager.default.fileExists(atPath: url.path) {
+                do {
+                    model = try MLModel(contentsOf: url)
+                    print("[PredictionService] Loaded model: \(url.lastPathComponent) from \(url.path)")
+                    return
+                } catch {
+                    print("[PredictionService] Failed to load \(url.lastPathComponent): \(error)")
+                }
+            }
         }
 
-        do {
-            model = try MLModel(contentsOf: modelURL)
-            print("[PredictionService] Loaded model: \(modelURL.lastPathComponent)")
-        } catch {
-            print("[PredictionService] Failed to load model: \(error)")
-        }
+        print("[PredictionService] No Core ML model found. Using placeholder predictions.")
     }
 
     // Predict recovery label from feature package
