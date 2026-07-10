@@ -1,0 +1,372 @@
+{
+  "feature_order": [
+    "mean_hr",
+    "min_hr",
+    "max_hr",
+    "hr_std",
+    "hr_drop_first_90m",
+    "activity_mean",
+    "activity_spike_count",
+    "sleep_fragmentation_score",
+    "total_duration_min"
+  ],
+  "label_map": {
+    "0": "poor",
+    "1": "average",
+    "2": "good"
+  },
+  "data_summary": {
+    "n_sessions": 240,
+    "n_users": 12,
+    "label_distribution": {
+      "0": 7,
+      "1": 37,
+      "2": 196
+    }
+  },
+  "models": {
+    "logistic_regression": {
+      "model": "LogisticRegression",
+      "accuracy": 0.946,
+      "balanced_accuracy": 0.69,
+      "macro_f1": 0.736,
+      "confusion_matrix": [
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          1,
+          29,
+          7
+        ],
+        [
+          0,
+          0,
+          196
+        ]
+      ],
+      "classification_report": {
+        "poor": {
+          "precision": 0.6666666666666666,
+          "recall": 0.2857142857142857,
+          "f1-score": 0.4,
+          "support": 7.0
+        },
+        "average": {
+          "precision": 0.8787878787878788,
+          "recall": 0.7837837837837838,
+          "f1-score": 0.8285714285714286,
+          "support": 37.0
+        },
+        "good": {
+          "precision": 0.9607843137254902,
+          "recall": 1.0,
+          "f1-score": 0.98,
+          "support": 196.0
+        },
+        "accuracy": 0.9458333333333333,
+        "macro avg": {
+          "precision": 0.835412953060012,
+          "recall": 0.6898326898326897,
+          "f1-score": 0.7361904761904762,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 0.9395647653000594,
+          "recall": 0.9458333333333333,
+          "f1-score": 0.9397380952380952,
+          "support": 240.0
+        }
+      },
+      "folds": [
+        {
+          "fold": 0,
+          "test_users": [
+            "2022484408"
+          ],
+          "n_samples": 1,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 1,
+          "test_users": [
+            "2026352035"
+          ],
+          "n_samples": 33,
+          "accuracy": 0.97,
+          "balanced_accuracy": 0.833
+        },
+        {
+          "fold": 2,
+          "test_users": [
+            "2347167796"
+          ],
+          "n_samples": 29,
+          "accuracy": 0.931,
+          "balanced_accuracy": 0.556
+        },
+        {
+          "fold": 3,
+          "test_users": [
+            "4020332650"
+          ],
+          "n_samples": 15,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 4,
+          "test_users": [
+            "4558609924"
+          ],
+          "n_samples": 4,
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.333
+        },
+        {
+          "fold": 5,
+          "test_users": [
+            "5553957443"
+          ],
+          "n_samples": 30,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 6,
+          "test_users": [
+            "5577150313"
+          ],
+          "n_samples": 32,
+          "accuracy": 0.938,
+          "balanced_accuracy": 0.75
+        },
+        {
+          "fold": 7,
+          "test_users": [
+            "6117666160"
+          ],
+          "n_samples": 27,
+          "accuracy": 0.889,
+          "balanced_accuracy": 0.722
+        },
+        {
+          "fold": 8,
+          "test_users": [
+            "6775888955"
+          ],
+          "n_samples": 16,
+          "accuracy": 0.875,
+          "balanced_accuracy": 0.583
+        },
+        {
+          "fold": 9,
+          "test_users": [
+            "6962181067"
+          ],
+          "n_samples": 33,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 10,
+          "test_users": [
+            "7007744171"
+          ],
+          "n_samples": 8,
+          "accuracy": 0.875,
+          "balanced_accuracy": 0.75
+        },
+        {
+          "fold": 11,
+          "test_users": [
+            "8792009665"
+          ],
+          "n_samples": 12,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        }
+      ],
+      "n_total": 240
+    },
+    "random_forest": {
+      "model": "RandomForest",
+      "accuracy": 0.938,
+      "balanced_accuracy": 0.602,
+      "macro_f1": 0.596,
+      "confusion_matrix": [
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          0,
+          30,
+          7
+        ],
+        [
+          0,
+          1,
+          195
+        ]
+      ],
+      "classification_report": {
+        "poor": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 7.0
+        },
+        "average": {
+          "precision": 0.8108108108108109,
+          "recall": 0.8108108108108109,
+          "f1-score": 0.8108108108108109,
+          "support": 37.0
+        },
+        "good": {
+          "precision": 0.9605911330049262,
+          "recall": 0.9948979591836735,
+          "f1-score": 0.9774436090225563,
+          "support": 196.0
+        },
+        "accuracy": 0.9375,
+        "macro avg": {
+          "precision": 0.5904673146052457,
+          "recall": 0.6019029233314948,
+          "f1-score": 0.5960848066111224,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 0.9094827586206897,
+          "recall": 0.9375,
+          "f1-score": 0.9232456140350876,
+          "support": 240.0
+        }
+      },
+      "folds": [
+        {
+          "fold": 0,
+          "test_users": [
+            "2022484408"
+          ],
+          "n_samples": 1,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 1,
+          "test_users": [
+            "2026352035"
+          ],
+          "n_samples": 33,
+          "accuracy": 0.97,
+          "balanced_accuracy": 0.833
+        },
+        {
+          "fold": 2,
+          "test_users": [
+            "2347167796"
+          ],
+          "n_samples": 29,
+          "accuracy": 0.931,
+          "balanced_accuracy": 0.556
+        },
+        {
+          "fold": 3,
+          "test_users": [
+            "4020332650"
+          ],
+          "n_samples": 15,
+          "accuracy": 0.933,
+          "balanced_accuracy": 0.75
+        },
+        {
+          "fold": 4,
+          "test_users": [
+            "4558609924"
+          ],
+          "n_samples": 4,
+          "accuracy": 0.5,
+          "balanced_accuracy": 0.333
+        },
+        {
+          "fold": 5,
+          "test_users": [
+            "5553957443"
+          ],
+          "n_samples": 30,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        },
+        {
+          "fold": 6,
+          "test_users": [
+            "5577150313"
+          ],
+          "n_samples": 32,
+          "accuracy": 0.969,
+          "balanced_accuracy": 0.875
+        },
+        {
+          "fold": 7,
+          "test_users": [
+            "6117666160"
+          ],
+          "n_samples": 27,
+          "accuracy": 0.852,
+          "balanced_accuracy": 0.556
+        },
+        {
+          "fold": 8,
+          "test_users": [
+            "6775888955"
+          ],
+          "n_samples": 16,
+          "accuracy": 0.938,
+          "balanced_accuracy": 0.667
+        },
+        {
+          "fold": 9,
+          "test_users": [
+            "6962181067"
+          ],
+          "n_samples": 33,
+          "accuracy": 0.97,
+          "balanced_accuracy": 0.984
+        },
+        {
+          "fold": 10,
+          "test_users": [
+            "7007744171"
+          ],
+          "n_samples": 8,
+          "accuracy": 0.75,
+          "balanced_accuracy": 0.5
+        },
+        {
+          "fold": 11,
+          "test_users": [
+            "8792009665"
+          ],
+          "n_samples": 12,
+          "accuracy": 1.0,
+          "balanced_accuracy": 1.0
+        }
+      ],
+      "n_total": 240
+    },
+    "xgboost_coreml_export": {
+      "status": "failed",
+      "error": "\nXGBoost Library (libxgboost.dylib) could not be loaded.\nLikely causes:\n  * OpenMP runtime is not installed\n    - vcomp140.dll or libgomp-1.dll for Windows\n    - libomp.dylib for Mac OSX\n    - libgomp.so for Linux and other UNIX-like OSes\n    Mac OSX users: Run `brew install libomp` to install OpenMP runtime.\n\n  * You are running 32-bit Python on a 64-bit OS\n\nError message(s): [\"dlopen(/Users/bigapple/Developments/sleep-recovery/python/.venv/lib/python3.9/site-packages/xgboost/lib/libxgboost.dylib, 0x0006): Library not loaded: @rpath/libomp.dylib\\n  Referenced from: <89AD948E-E564-3266-867D-7AF89D6488F0> /Users/bigapple/Developments/sleep-recovery/python/.venv/lib/python3.9/site-packages/xgboost/lib/libxgboost.dylib\\n  Reason: tried: '/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file)\"]\n",
+      "fallback": "RandomForest via scikit-learn"
+    }
+  },
+  "model_selection": {
+    "primary": "LogisticRegression",
+    "reason": "XGBoost Core ML export failed; LR simplest deployable model"
+  }
+}
