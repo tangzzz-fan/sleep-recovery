@@ -1,7 +1,62 @@
-# M2: Preprocessing Pipeline — 知识难点与预判解决方案
+# M2: Preprocessing Pipeline — 知识难点与解决方案
 
 > 对应 Ticket 02。C++ 数据适配、标准化、合成补齐、特征提取 CLI。
-> **状态：预判文档**（实施前编写，实施后更新）。
+> **状态：已实施完成**（已验证 10/10 golden sample checks PASSED）。
+
+## 实际踩坑记录
+
+### 坑 1: CSV 文件中的 `\r` 行尾
+
+**现象**：Fitbit 原始 CSV 使用 Windows 行尾（`\r\n`）。CsvReader 用 `std::getline`
+读取后，`\r` 留在了最后一个字段的末尾，导致列名 `Value\r` 而非 `Value`。
+
+**根因**：`std::getline` 按 `\n` 分割，保留 `\r`。
+
+**修复**：在读取 header 和每行后检查 `line.back() == '\r'` 并移除。
+
+### 坑 2: CsvReader API vs CsvTable 类型不一致
+
+**现象**：`hr_aggregator.h` 和 `session_builder.h` 的接口接受 `const CsvTable&`（即 `std::vector<CsvRow>`），但 main.cpp 传递的是 `CsvReader` 对象。
+
+**修复**：统一使用 `.rows()` 方法提取 CsvTable，或在信号中使用正确的类型。最终在 main.cpp 中显式调用 `reader.rows()`。
+
+### 坑 3: `timegm` vs `mktime` 的 8 小时时区差
+
+**现象**：C++ 的 `parse_12h_to_epoch` 和 Python 的 `datetime.strptime` 对同一时间戳的 epoch 值差 8 小时（PDT 时区）。
+
+**根因**：
+- Python `datetime.strptime` 产生 naive datetime，`.timestamp()` 应用本地时区（PDT = UTC-8）
+- C++ `timegm` 把 tm 直接解释为 UTC（零偏移）
+- 两者差 8 小时
+
+**修复**：统一使用 `timegm` 的语义（把 Fitbit 数据视为 UTC），匹配 data-contract.md 的决策：假定所有 Fitbit 数据为 UTC。
+
+### 坑 4: XGBoost 的 OpenMP 依赖
+
+**现象**：M3 中 XGBoost 无法加载，报错 `Library not loaded: @rpath/libomp.dylib`。
+
+**修复**：`brew install libomp`。
+
+### 坑 5: XGBoost Core ML 转换需要 DMatrix feature_names
+
+**现象**：`coremltools.converters.xgboost.convert()` 报错 "training data did not have the following fields"。
+
+**修复**：`dtrain = xgb.DMatrix(X, label=y, feature_names=FEATURE_ORDER)`，DMatrix 必须显式传递 feature_names。
+
+## 预判验证结果
+
+| 预判 | 是否命中 | 实际情况 |
+|---|---|---|
+| 1. C++ CSV 解析复杂性 | ✅ 命中 | `\r` 行尾污染列名；类型不一致导致编译错误 |
+| 2. 12 小时制时间戳 | ✅ 命中 | timegm/mktime 差 8 小时，与 Python 对齐 |
+| 3. HR 聚合性能 | ❌ 未命中 | 1.1M HR 行 × 12 用户，边读边聚合，内存 ~8MB 可接受 |
+| 4. 合成数据真实性 | ✅ 命中 | 从真实分布采样参数，不是线性生成 |
+| 5. 弱标签一致性 | ✅ 命中 | C++ 和 Python 输出完全一致（diff=0.0） |
+| 6. 缺失数据处理 | ❌ 未命中 | Fitbit 数据质量好，基本无缺失 |
+| 7. 跨表关联 | ✅ 命中 | 按 user_id → date → session 的顺序构建，关联完整 |
+| 8. Makefile 布局 | ✅ 命中 | 零外部依赖，clang++ + make 直接工作 |
+| 9. CLI 接口 | ✅ 命中 | --golden 验证开关在开发中很有用 |
+| 10. 验收标准 | ✅ 全部通过 | 10/10 golden checks, pandas 可读, 240 sessions |
 
 ---
 

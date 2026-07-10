@@ -1,7 +1,55 @@
-# M3: Training & Model Adapter — 知识难点与预判解决方案
+# M3: Training & Model Adapter — 知识难点与解决方案
 
 > 对应 Tickets 03 + 04。训练 3 类模型、设计模型适配层、验证 Core ML 导出。
-> **状态：预判文档**（实施前编写，实施后更新）。
+> **状态：已实施完成**（3 模型训练 + Core ML 导出全部验证通过）。
+
+## 实际踩坑记录
+
+### 坑 1: coremltools 9.0 不兼容 scikit-learn 1.6
+
+**现象**：安装 coremltools 9.0 + scikit-learn 1.6.1 后，sklearn converter 被禁用。
+**修复**：降级到 scikit-learn 1.5.2 + coremltools 8.3。
+
+### 坑 2: coremltools 仅支持 OvR 多分类
+
+**现象**：使用 `multi_class='multinomial'` 时报错 "Only One Vs Rest is supported"。
+**修复**：改用 `multi_class='ovr'`，对 3 分类任务性能无影响。
+
+### 坑 3: coremltools 预测输入格式
+
+**现象**：传入 `{"input": array}` 报错 KeyError "input 不是模型的输入名"。
+**修复**：需要按特征名逐个传参：`{"mean_hr": 60.5, "min_hr": 54.7, ...}`。
+
+### 坑 4: XGBoost 的 OpenMP 依赖
+
+**现象**：`import xgboost` 时报错 libomp.dylib 未加载。
+**修复**：`brew install libomp`。
+
+### 坑 5: XGBoost Core ML 转换需要 DMatrix feature_names
+
+**现象**：`coremltools.converters.xgboost.convert()` 报错 "training data did not have the following fields"。
+**修复**：`dtrain = xgb.DMatrix(X, label=y, feature_names=FEATURE_ORDER)`。
+
+### 坑 6: RandomForest Core ML 输出概率异常
+
+**现象**：RF 的 Core ML 输出概率是 Python 的 100 倍（如 95.9% 而非 0.959）。
+**原因**：coremltools 的 RandomForest 转换器输出的是百分比概率（0-100）而非小数（0-1）。
+**处理**：不影响 classLabel 预测，知道即可。
+
+## 预判验证结果
+
+| 预判 | 是否命中 | 实际情况 |
+|---|---|---|
+| 1. 12 用户样本量限制 | ✅ 命中 | Poor 类仅 7 样本，RF 在该类 recall=0 |
+| 2. XGBoost Core ML 兼容性 | ✅ 命中 | 需要 libomp + DMatrix feature_names，但最终成功导出 |
+| 3. 模型适配层设计 | ✅ 命中 | ModelAdapter 统一了 LR/RF 的训练和预测接口 |
+| 4. Python 版本兼容性 | ✅ 命中 | scikit-learn 1.6→1.5 兼容 coremltools 8.3 |
+| 5. 评估指标陷阱 | ✅ 命中 | Accuracy=0.946 但 BalancedAcc=0.69，类别不均衡导致假象 |
+| 6. Colab 连接稳定性 | ❌ 未测试 | 全部训练在本地完成（240 样本太小，无需 Colab GPU） |
+| 7. coremltools 版本记录 | ✅ 实施 | 训练报告 JSON 包含所有元数据 |
+| 8. 特征重要性一致性 | ⚠️ 部分命中 | 3 模型特征重要性排序不同（预期行为），已记录在 model-selection-analysis.md |
+| 9. 输入输出一致性 | ✅ 命中 | Python/CoreML/Swift 三端命名一致，黄金样本验证通过 |
+| 10. 训练-测试泄露 | ✅ 命中 | 弱标签和特征强相关，但这是预期行为（非医学诊断） |
 
 ---
 

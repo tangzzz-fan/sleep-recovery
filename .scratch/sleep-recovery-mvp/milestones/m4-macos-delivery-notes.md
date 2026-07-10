@@ -1,7 +1,54 @@
-# M4: macOS Deployment & Delivery — 知识难点与预判解决方案
+# M4: macOS Deployment & Delivery — 知识难点与解决方案
 
 > 对应 Tickets 05 + 06 + 07。macOS SwiftUI 应用，Core ML 集成，全链路验证，交付文档。
-> **状态：预判文档**（实施前编写，实施后更新）。
+> **状态：已实施完成**（SwiftUI app 编译启动正常，多夜趋势图集成，全部 7 个 tickets 交付）。
+
+## 实际踩坑记录
+
+### 坑 1: Swift Charts 需要显式 import
+
+**现象**：`Chart`、`LineMark`、`BarMark`、`RuleMark` 找不到。
+**修复**：HomeView.swift 顶部添加 `import Charts`。
+
+### 坑 2: Swift Package Manager 源码路径配置
+
+**现象**：SPM 找不到源文件（"target is empty"），因为源码在非标准路径。
+**修复**：Package.swift 中显式设置 `path: "SleepRecovery/Sources"`。
+
+### 坑 3: Core ML 输出概率字典的 key 类型转换
+
+**现象**：`output.featureValue(for: "classProbability")?.dictionaryValue` 的 key 是 `AnyHashable`，不能直接传递给 `Int()`。
+**修复**：`Int("\(key)")`（先转字符串再转整数）。
+
+### 坑 4: 跨层一致性的 silent failure 风险
+
+**现象**：如果 Swift 端输入特征名与 Core ML 模型不一致，不会报错但结果错误。
+**验证**：黄金样本在 C++→Python→CoreML→Swift 四层上做了显式对比，所有层级都通过。
+
+### 坑 5: `#Preview` 宏在 macOS 14.0 目标上可用
+
+**现象**：`#Preview` 宏是 Swift 6 / macOS 14+ 的新特性，在旧版本会报错。
+**确认**：Package.swift 设置了 `.macOS(.v14)`，所以没问题。
+
+### 坑 6: 重复 `#Preview` 导致编译失败
+
+**现象**：编辑 HomeView 时不小心留下了两个 `#Preview` 块，导致宏展开错误。
+**修复**：删除重复的 `#Preview`，保留一个。
+
+## 预判验证结果
+
+| 预判 | 是否命中 | 实际情况 |
+|---|---|---|
+| 1. Core ML 输入类型匹配 | ✅ 命中 | float32/double 自动转换，独立特征名输入方式正确 |
+| 2. Swift Charts 心率图 | ✅ 命中 | LineMark + RuleMark + AxisMarks 按预期工作 |
+| 3. 多夜趋势状态管理 | ✅ 命中 | TrendView 独立管理 [NightResult]，allSessions 共享 |
+| 4. 影响因素展示 | ⚠️ 简化 | 采用规则判断（方案 B）而非模型特征重要性 |
+| 5. macOS 版本/签名 | ✅ 命中 | macOS 14.0, 本地开发无需签名 |
+| 6. 全链路验证 | ✅ 命中 | 四层验证全部通过 |
+| 7. Core ML 优化 | ✅ 完成 | coreml-optimization.md 已有详细分析 |
+| 8. DEMO 文档 | ✅ 完成 | DEMO.md 含快速开始指南 |
+| 9. 文件选择器 | ✅ 命中 | fileImporter 正常工作 |
+| 10. 交付文档清单 | ✅ 完成 | 7 份文档全部产出 |
 
 ---
 
