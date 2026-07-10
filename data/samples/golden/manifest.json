@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "golden_sample": {
+    "session_id": "2347167796_4-1-2016",
+    "user_id": 2347167796,
+    "date": "4/1/2016",
+    "sleep_window": {
+      "start": "2016-04-01T00:00:00Z",
+      "end": "2016-04-01T06:30:00Z",
+      "duration_min": 391
+    }
+  },
+  "features": {
+    "session_id": "2347167796_4-1-2016",
+    "mean_hr": 60.53,
+    "min_hr": 54.67,
+    "max_hr": 75.0,
+    "hr_std": 3.46,
+    "hr_drop_first_90m": 4.07,
+    "activity_mean": 0.0034,
+    "activity_spike_count": 4,
+    "sleep_fragmentation_score": 0.0166,
+    "total_duration_min": 391.0,
+    "recovery_label": 2,
+    "recovery_score": 95.8
+  },
+  "weak_label": {
+    "recovery_score": 95.8,
+    "recovery_label": 2,
+    "label_name": "good"
+  }
+}

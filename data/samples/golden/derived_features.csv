@@ -1,0 +1,2 @@
+session_id,mean_hr,min_hr,max_hr,hr_std,hr_drop_first_90m,activity_mean,activity_spike_count,sleep_fragmentation_score,total_duration_min,recovery_label
+2347167796_4-1-2016,60.53,54.67,75.0,3.46,4.07,0.0034,4,0.0166,391.0,2
